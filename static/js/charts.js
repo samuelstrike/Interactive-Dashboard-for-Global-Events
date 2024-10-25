@@ -16,7 +16,9 @@ async function initializeCharts() {
         if (!response.ok) throw new Error('Failed to fetch summary data');
         const stats = await response.json();
 
-        // Initialize Category Chart
+        console.log('Summary data:', stats); // Debug log
+
+        // Category Chart
         const catCtx = document.getElementById('categoryChart').getContext('2d');
         categoryChart = new Chart(catCtx, {
             type: 'doughnut',
@@ -36,17 +38,13 @@ async function initializeCharts() {
                 plugins: {
                     legend: {
                         position: 'right',
-                        labels: {
-                            font: {
-                                size: 10
-                            }
-                        }
+                        labels: { font: { size: 10 } }
                     }
                 }
             }
         });
 
-        // Initialize Magnitude Chart
+        // Magnitude Chart
         const magCtx = document.getElementById('magnitudeChart').getContext('2d');
         magnitudeChart = new Chart(magCtx, {
             type: 'bar',
@@ -55,9 +53,9 @@ async function initializeCharts() {
                 datasets: [{
                     label: 'Event Count',
                     data: [
-                        stats.magnitudes.low,
-                        stats.magnitudes.medium,
-                        stats.magnitudes.high
+                        stats.magnitudes.low || 0,
+                        stats.magnitudes.medium || 0,
+                        stats.magnitudes.high || 0
                     ],
                     backgroundColor: ['#FFEB3B', '#FF9800', '#F44336']
                 }]
@@ -66,24 +64,17 @@ async function initializeCharts() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: false
-                    }
+                    legend: { display: false }
                 },
                 scales: {
                     y: {
-                        beginAtZero: true,
-                        ticks: {
-                            font: {
-                                size: 10
-                            }
-                        }
+                        beginAtZero: true
                     }
                 }
             }
         });
 
-        // Initialize Frequency Chart
+        // Frequency Chart
         const freqCtx = document.getElementById('frequencyChart').getContext('2d');
         frequencyChart = new Chart(freqCtx, {
             type: 'line',
@@ -94,32 +85,21 @@ async function initializeCharts() {
                     data: Object.values(stats.daily_counts),
                     borderColor: '#007bff',
                     backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    fill: true,
-                    tension: 0.4
+                    fill: true
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: false
-                    }
+                    legend: { display: false }
                 },
                 scales: {
                     y: {
-                        beginAtZero: true,
-                        ticks: {
-                            font: {
-                                size: 10
-                            }
-                        }
+                        beginAtZero: true
                     },
                     x: {
                         ticks: {
-                            font: {
-                                size: 10
-                            },
                             maxRotation: 45,
                             minRotation: 45
                         }
@@ -127,6 +107,7 @@ async function initializeCharts() {
                 }
             }
         });
+
     } catch (error) {
         console.error('Error initializing charts:', error);
     } finally {
@@ -135,33 +116,35 @@ async function initializeCharts() {
 }
 
 async function updateCharts() {
-    showLoading();
     try {
         const response = await fetch('/api/summary');
         if (!response.ok) throw new Error('Failed to fetch summary data');
         const stats = await response.json();
 
-        // Update Category Chart
-        categoryChart.data.labels = Object.keys(stats.categories);
-        categoryChart.data.datasets[0].data = Object.values(stats.categories);
-        categoryChart.update();
+        console.log('Update data:', stats); // Debug log
 
-        // Update Magnitude Chart
-        magnitudeChart.data.datasets[0].data = [
-            stats.magnitudes.low,
-            stats.magnitudes.medium,
-            stats.magnitudes.high
-        ];
-        magnitudeChart.update();
+        if (categoryChart) {
+            categoryChart.data.labels = Object.keys(stats.categories);
+            categoryChart.data.datasets[0].data = Object.values(stats.categories);
+            categoryChart.update();
+        }
 
-        // Update Frequency Chart
-        frequencyChart.data.labels = Object.keys(stats.daily_counts);
-        frequencyChart.data.datasets[0].data = Object.values(stats.daily_counts);
-        frequencyChart.update();
+        if (magnitudeChart) {
+            magnitudeChart.data.datasets[0].data = [
+                stats.magnitudes.low || 0,
+                stats.magnitudes.medium || 0,
+                stats.magnitudes.high || 0
+            ];
+            magnitudeChart.update();
+        }
+
+        if (frequencyChart) {
+            frequencyChart.data.labels = Object.keys(stats.daily_counts);
+            frequencyChart.data.datasets[0].data = Object.values(stats.daily_counts);
+            frequencyChart.update();
+        }
     } catch (error) {
         console.error('Error updating charts:', error);
-    } finally {
-        hideLoading();
     }
 }
 
@@ -220,3 +203,11 @@ async function refreshData() {
         hideLoading();
     }
 }
+
+// Initialize when document is ready
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing charts...'); // Debug log
+    initializeCharts();
+    initializeSlider();
+    loadCategories();
+});

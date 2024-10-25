@@ -201,39 +201,62 @@ class EONETData:
 
     def get_summary_statistics(self):
         """Generate summary statistics"""
-        if not self.events_cache:
-            return {
-                'event_count': 0,
-                'categories': {},
-                'magnitudes': {'low': 0, 'medium': 0, 'high': 0},
-                'daily_counts': {}
-            }
-
         stats = {
-            'event_count': len(self.events_cache['events']),
+            'event_count': 0,
             'categories': {},
-            'magnitudes': {'low': 0, 'medium': 0, 'high': 0},
+            'magnitudes': {
+                'low': 0,
+                'medium': 0,
+                'high': 0
+            },
             'daily_counts': {}
         }
 
+        if not self.events_cache:
+            return stats
+
+        stats['event_count'] = len(self.events_cache['events'])
+
         for event in self.events_cache['events']:
-            # Category statistics
-            category = event['categories'][0]['title']
-            stats['categories'][category] = stats['categories'].get(category, 0) + 1
+            try:
+                # Category statistics
+                category = event['categories'][0]['title']
+                stats['categories'][category] = stats['categories'].get(category, 0) + 1
 
-            # Magnitude statistics
-            if 'magnitudeValue' in event:
-                magnitude = float(event['magnitudeValue'])
-                if magnitude < 3:
-                    stats['magnitudes']['low'] += 1
-                elif magnitude < 6:
-                    stats['magnitudes']['medium'] += 1
+                # Daily counts
+                date = event['geometry'][0]['date'][:10]
+                stats['daily_counts'][date] = stats['daily_counts'].get(date, 0) + 1
+
+                # Magnitude statistics
+                # Check for magnitude in different possible locations
+                magnitude = None
+                if 'magnitudeValue' in event:
+                    magnitude = float(event['magnitudeValue'])
+                elif event.get('geometry', []):
+                    for geo in event['geometry']:
+                        if 'magnitudeValue' in geo:
+                            magnitude = float(geo['magnitudeValue'])
+                            break
+
+                # Categorize magnitude if found
+                if magnitude is not None:
+                    print(f"Processing magnitude: {magnitude}")  # Debug print
+                    if magnitude < 3:
+                        stats['magnitudes']['low'] += 1
+                    elif magnitude < 6:
+                        stats['magnitudes']['medium'] += 1
+                    else:
+                        stats['magnitudes']['high'] += 1
                 else:
-                    stats['magnitudes']['high'] += 1
+                    # If no magnitude found, count as low
+                    stats['magnitudes']['low'] += 1
 
-            # Daily counts
-            date = event['geometry'][0]['date'][:10]
-            stats['daily_counts'][date] = stats['daily_counts'].get(date, 0) + 1
+            except Exception as e:
+                print(f"Error processing event: {e}")
+                continue
+
+        # Debug print
+        print("Magnitude statistics:", stats['magnitudes'])
 
         return stats
 
