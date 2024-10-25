@@ -1,1 +1,1 @@
-# Nasa_eonet_visualiation
+# Interative Dashboard for Globel Events
