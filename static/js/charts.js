@@ -211,12 +211,39 @@ async function loadCategories() {
     }
 }
 
+async function updateMap() {
+    showLoading();
+    try {
+        const slider = document.getElementById('magnitudeSlider');
+        const [minMag, maxMag] = slider.noUiSlider.get();
+        
+        const params = new URLSearchParams({
+            start_date: document.getElementById('startDate').value,
+            end_date: document.getElementById('endDate').value,
+            event_type: document.getElementById('eventType').value,
+            min_magnitude: minMag,
+            max_magnitude: maxMag
+        });
+
+        const response = await fetch(`/api/map?${params}`);
+        if (!response.ok) throw new Error('Failed to update map');
+        
+        const mapHtml = await response.text();
+        document.querySelector('.map-container').innerHTML = mapHtml;
+    } catch (error) {
+        console.error('Error updating map:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
 async function refreshData() {
     showLoading();
     try {
+        // Update both map and charts
         await Promise.all([
-            updateCharts(),
-            updateMap()
+            updateMap(),
+            updateCharts()
         ]);
     } catch (error) {
         console.error('Error refreshing data:', error);
@@ -225,10 +252,31 @@ async function refreshData() {
     }
 }
 
-// Initialize when document is ready
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Initializing charts...'); // Debug log
-    initializeCharts();
-    initializeSlider();
-    loadCategories();
+// Initialize everything when the document is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await initializeCharts();
+        await loadCategories();
+        initializeSlider();
+        
+        // Set default date range
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);  // Last 30 days
+        
+        document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+        document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+
+        // Add event listeners
+        document.getElementById('magnitudeSlider').noUiSlider.on('change', refreshData);
+        document.getElementById('eventType').addEventListener('change', refreshData);
+        document.getElementById('startDate').addEventListener('change', refreshData);
+        document.getElementById('endDate').addEventListener('change', refreshData);
+
+        // Initial data load
+        await refreshData();
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
 });
+
