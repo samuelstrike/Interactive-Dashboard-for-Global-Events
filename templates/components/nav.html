@@ -1,0 +1,13 @@
+<nav class="main-nav">
+    <div class="nav-buttons">
+        <a href="/" class="btn btn-primary {% if request.endpoint == 'index' %}active{% endif %}">
+            <i class="fas fa-home"></i> Dashboard
+        </a>
+        <a href="/trends" class="btn btn-primary {% if request.endpoint == 'trends' %}active{% endif %}">
+            <i class="fas fa-chart-line"></i> Time Series
+        </a>
+        <a href="/analysis" class="btn btn-primary {% if request.endpoint == 'analysis' %}active{% endif %}">
+            <i class="fas fa-chart-pie"></i> Analysis
+        </a>
+    </div>
+</nav>
