@@ -27,7 +27,7 @@ The Earth Observatory Natural Event Tracker (EONET) Dashboard is a web applicati
 1. Clone the repository
 ```bash
 git clone https://github.com/samuelstrike/Interactive-Dashboard-for-Global-Events.git
-cd dashboard
+cd eonet_dashboard
 ```
 
 2. Create and activate a virtual environment
