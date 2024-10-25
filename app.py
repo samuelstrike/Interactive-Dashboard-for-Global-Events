@@ -46,7 +46,7 @@ class EONETData:
             print(f"Error during initial data load: {e}")
             return False
 
-    def fetch_events(self, days=30):
+    def fetch_events(self, days=365):
         """Fetch events from EONET API"""
         try:
             end_date = datetime.utcnow()
@@ -82,30 +82,57 @@ class EONETData:
             return False
 
     def get_filtered_events(self, start_date=None, end_date=None, event_type=None, 
-                          min_magnitude=None, max_magnitude=None):
+                        min_magnitude=None, max_magnitude=None):
         """Get filtered events based on criteria"""
         if not self.events_cache:
             return {"events": []}
 
         filtered_events = []
         for event in self.events_cache.get('events', []):
-            # Apply filters
-            if start_date and event['geometry'][0]['date'][:10] < start_date:
-                continue
-            if end_date and event['geometry'][0]['date'][:10] > end_date:
-                continue
-            if event_type and event['categories'][0]['id'] != event_type:
-                continue
-            
-            magnitude = event.get('magnitudeValue')
-            if magnitude:
-                magnitude = float(magnitude)
-                if min_magnitude and magnitude < float(min_magnitude):
+            try:
+                # Apply date and type filters
+                if start_date and event['geometry'][0]['date'][:10] < start_date:
                     continue
-                if max_magnitude and magnitude > float(max_magnitude):
+                if end_date and event['geometry'][0]['date'][:10] > end_date:
                     continue
-            
-            filtered_events.append(event)
+                if event_type and event['categories'][0]['id'] != event_type:
+                    continue
+                
+                # Initialize magnitude as None
+                magnitude = None
+
+                # Try to get magnitude from event root
+                if 'magnitudeValue' in event:
+                    try:
+                        mag_value = event.get('magnitudeValue')
+                        if mag_value is not None and str(mag_value).strip():
+                            magnitude = float(mag_value)
+                    except (ValueError, TypeError):
+                        pass
+
+                # Try to get magnitude from geometry if not found in root
+                if magnitude is None and event.get('geometry'):
+                    for geo in event['geometry']:
+                        try:
+                            mag_value = geo.get('magnitudeValue')
+                            if mag_value is not None and str(mag_value).strip():
+                                magnitude = float(mag_value)
+                                break
+                        except (ValueError, TypeError):
+                            continue
+
+                # Apply magnitude filters if magnitude exists
+                if magnitude is not None and (min_magnitude is not None or max_magnitude is not None):
+                    if min_magnitude and magnitude < float(min_magnitude):
+                        continue
+                    if max_magnitude and magnitude > float(max_magnitude):
+                        continue
+                
+                filtered_events.append(event)
+
+            except Exception as e:
+                print(f"Error filtering event: {str(e)}")
+                continue
 
         return {"events": filtered_events}
 
@@ -205,9 +232,9 @@ class EONETData:
             'event_count': 0,
             'categories': {},
             'magnitudes': {
-                'low': 0,
-                'medium': 0,
-                'high': 0
+                'low': 0,    # 0-1.5
+                'medium': 0, # 1.5-5
+                'high': 0    # 5+
             },
             'daily_counts': {}
         }
@@ -228,22 +255,29 @@ class EONETData:
                 stats['daily_counts'][date] = stats['daily_counts'].get(date, 0) + 1
 
                 # Magnitude statistics
-                # Check for magnitude in different possible locations
+                # Check for magnitude in both possible locations
                 magnitude = None
-                if 'magnitudeValue' in event:
+                mag_id = None
+
+                # Check in event root
+                if 'magnitudeValue' in event and 'magnitudeUnit' in event:
                     magnitude = float(event['magnitudeValue'])
+                    mag_id = event.get('magnitudeUnit')
+
+                # Check in geometry
                 elif event.get('geometry', []):
                     for geo in event['geometry']:
-                        if 'magnitudeValue' in geo:
+                        if 'magnitudeValue' in geo and 'magnitudeUnit' in geo:
                             magnitude = float(geo['magnitudeValue'])
+                            mag_id = geo.get('magnitudeUnit')
                             break
 
                 # Categorize magnitude if found
                 if magnitude is not None:
-                    print(f"Processing magnitude: {magnitude}")  # Debug print
-                    if magnitude < 3:
+                    print(f"Processing magnitude: {magnitude}, Unit: {mag_id}")  # Debug print
+                    if magnitude < 1.5:
                         stats['magnitudes']['low'] += 1
-                    elif magnitude < 6:
+                    elif magnitude < 5.0:
                         stats['magnitudes']['medium'] += 1
                     else:
                         stats['magnitudes']['high'] += 1

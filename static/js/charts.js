@@ -49,7 +49,7 @@ async function initializeCharts() {
         magnitudeChart = new Chart(magCtx, {
             type: 'bar',
             data: {
-                labels: ['Low', 'Medium', 'High'],
+                labels: ['Low (0-1.5)', 'Medium (1.5-5.0)', 'High (5.0+)'],
                 datasets: [{
                     label: 'Event Count',
                     data: [
@@ -64,11 +64,31 @@ async function initializeCharts() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `Events: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
                 },
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Events'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Magnitude Range'
+                        }
                     }
                 }
             }
@@ -155,13 +175,14 @@ function initializeSlider() {
     }
     
     noUiSlider.create(slider, {
-        start: [0, 10],
+        start: [0, 20],
         connect: true,
         range: {
             'min': 0,
-            'max': 10
+            'max': 20
         },
-        step: 0.1
+        step: 0.5,
+        tooltips: true
     });
 
     slider.noUiSlider.on('update', values => {
