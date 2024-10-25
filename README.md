@@ -1,6 +1,4 @@
-# Interative Dashboard for Globel Events
-
-# NASA EONET Event Tracker Dashboard
+# NASA EONET Event Tracker Dashboard - Interative Dashboard for Globel Events
 
 ## Overview
 The Earth Observatory Natural Event Tracker (EONET) Dashboard is a web application that provides real-time visualization and analysis of natural events across the globe. This application utilizes NASA's EONET API to track and visualize various natural events such as wildfires, earthquakes, volcanic activity, storms, and floods.
