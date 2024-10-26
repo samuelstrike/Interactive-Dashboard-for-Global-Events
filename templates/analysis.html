@@ -1,5 +1,3 @@
-
-<!-- templates/analysis.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,134 +5,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EONET Analysis</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
         .chart-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
             gap: 20px;
             margin-top: 20px;
         }
+
         .chart-container {
             background: white;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            height: 400px;
-        }
-        .filters {
-            margin-bottom: 20px;
-        }
-        select {
-            padding: 8px;
-            border-radius: 4px;
+            height: 500px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>EONET Event Analysis</h1>
-        
-        <div class="filters">
-            <select id="timePeriod">
-                <option value="7">Last 7 Days</option>
-                <option value="30" selected>Last 30 Days</option>
-                <option value="90">Last 90 Days</option>
-                <option value="180">Last 180 Days</option>
-            </select>
+        <div class="header">
+            <h1>EONET Analysis</h1>
+            <a href="/" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
         </div>
 
         <div class="chart-grid">
             <div class="chart-container">
-                <canvas id="trendsChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <canvas id="categoriesChart"></canvas>
-            </div>
-            <div class="chart-container">
                 <canvas id="geographicChart"></canvas>
             </div>
             <div class="chart-container">
-                <canvas id="severityChart"></canvas>
+                <canvas id="dailyEventsChart"></canvas>
             </div>
         </div>
     </div>
 
     <script>
-        let charts = {};
-
         async function fetchData() {
-            const period = document.getElementById('timePeriod').value;
-            const response = await fetch(`/api/analysis/data?period=${period}`);
-            return await response.json();
+            const [geoResponse, dailyResponse] = await Promise.all([
+                fetch('/api/analysis/geographic'),
+                fetch('/api/analysis/daily')
+            ]);
+
+            const geoData = await geoResponse.json();
+            const dailyData = await dailyResponse.json();
+
+            return { geoData, dailyData };
         }
 
-        function initializeCharts() {
-            // Trends Chart
-            const trendsCtx = document.getElementById('trendsChart').getContext('2d');
-            charts.trends = new Chart(trendsCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Events Over Time',
-                        borderColor: '#007bff',
-                        tension: 0.1,
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Event Trends'
-                        }
-                    }
-                }
-            });
-
-            // Categories Chart
-            const categoriesCtx = document.getElementById('categoriesChart').getContext('2d');
-            charts.categories = new Chart(categoriesCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        data: [],
-                        backgroundColor: [
-                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-                            '#9966FF', '#FF9F40', '#FF6384', '#36A2EB'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Event Categories'
-                        }
-                    }
-                }
-            });
-
-            // Geographic Chart
-            const geoCtx = document.getElementById('geographicChart').getContext('2d');
-            charts.geographic = new Chart(geoCtx, {
+        function initializeCharts(data) {
+            // Geographic Distribution Chart
+            new Chart(document.getElementById('geographicChart'), {
                 type: 'bar',
                 data: {
-                    labels: [],
+                    labels: data.geoData.map(d => d.region),
                     datasets: [{
                         label: 'Events by Region',
+                        data: data.geoData.map(d => d.events),
                         backgroundColor: '#4BC0C0',
-                        data: []
+                        borderColor: '#4BC0C0',
+                        borderWidth: 1
                     }]
                 },
                 options: {
@@ -143,37 +129,71 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Geographic Distribution'
-                        }
-                    }
-                }
-            });
-
-            // Severity Chart
-            const sevCtx = document.getElementById('severityChart').getContext('2d');
-            charts.severity = new Chart(sevCtx, {
-                type: 'scatter',
-                data: {
-                    datasets: [{
-                        label: 'Event Severity',
-                        data: [],
-                        backgroundColor: '#FF6384'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
+                            text: 'Geographic Distribution',
+                            font: { size: 16 }
+                        },
+                        legend: {
                             display: true,
-                            text: 'Event Severity'
+                            position: 'top'
                         }
                     },
                     scales: {
                         y: {
+                            beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Magnitude'
+                                text: 'Number of Events'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Daily Events Chart
+            new Chart(document.getElementById('dailyEventsChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.dailyData.map(d => d.date),
+                    datasets: [{
+                        label: 'Number of Events',
+                        data: data.dailyData.map(d => d.events),
+                        backgroundColor: '#82ca9d',
+                        borderColor: '#82ca9d',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Number of Events per Day (Last past Week)',
+                            font: { size: 16 }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Events'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     }
@@ -181,39 +201,10 @@
             });
         }
 
-        async function updateCharts() {
-            const data = await fetchData();
-            
-            // Update Trends Chart
-            charts.trends.data.labels = data.trends.labels;
-            charts.trends.data.datasets[0].data = data.trends.values;
-            charts.trends.update();
-
-            // Update Categories Chart
-            charts.categories.data.labels = data.categories.labels;
-            charts.categories.data.datasets[0].data = data.categories.values;
-            charts.categories.update();
-
-            // Update Geographic Chart
-            charts.geographic.data.labels = Object.keys(data.geographic);
-            charts.geographic.data.datasets[0].data = Object.values(data.geographic);
-            charts.geographic.update();
-
-            // Update Severity Chart
-            charts.severity.data.datasets[0].data = data.severity.labels.map((date, i) => ({
-                x: new Date(date),
-                y: data.severity.values[i]
-            }));
-            charts.severity.update();
-        }
-
-        // Initialize
+        // Initialize charts when page loads
         document.addEventListener('DOMContentLoaded', async () => {
-            initializeCharts();
-            await updateCharts();
-            
-            // Add event listener for time period changes
-            document.getElementById('timePeriod').addEventListener('change', updateCharts);
+            const data = await fetchData();
+            initializeCharts(data);
         });
     </script>
 </body>

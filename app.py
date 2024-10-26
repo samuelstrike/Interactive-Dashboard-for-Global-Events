@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, jsonify, request
 import requests
 import folium
@@ -12,6 +11,7 @@ from threading import Lock
 import time
 
 app = Flask(__name__)
+
 
 class EONETData:
     def __init__(self):
@@ -29,7 +29,7 @@ class EONETData:
             vmin=0, vmax=10,
             caption='Event Magnitude'
         )
-        
+
         # Initialize data
         self.initialize()
 
@@ -51,20 +51,20 @@ class EONETData:
         try:
             end_date = datetime.utcnow()
             start_date = end_date - timedelta(days=days)
-            
+
             params = {
                 'start': start_date.strftime('%Y-%m-%d'),
                 'end': end_date.strftime('%Y-%m-%d'),
                 'status': 'all'
             }
-            
+
             response = requests.get(f"{self.EONET_API}/events", params=params)
             response.raise_for_status()
-            
+
             with self.data_lock:
                 self.events_cache = response.json()
                 self.last_update = datetime.now()
-            
+
             return True
         except Exception as e:
             print(f"Error fetching events: {e}")
@@ -81,8 +81,8 @@ class EONETData:
             print(f"Error fetching categories: {e}")
             return False
 
-    def get_filtered_events(self, start_date=None, end_date=None, event_type=None, 
-                        min_magnitude=None, max_magnitude=None):
+    def get_filtered_events(self, start_date=None, end_date=None, event_type=None,
+                            min_magnitude=None, max_magnitude=None):
         """Get filtered events based on criteria"""
         if not self.events_cache:
             return {"events": []}
@@ -97,7 +97,7 @@ class EONETData:
                     continue
                 if event_type and event['categories'][0]['id'] != event_type:
                     continue
-                
+
                 # Initialize magnitude as None
                 magnitude = None
 
@@ -127,7 +127,7 @@ class EONETData:
                         continue
                     if max_magnitude and magnitude > float(max_magnitude):
                         continue
-                
+
                 filtered_events.append(event)
 
             except Exception as e:
@@ -147,24 +147,24 @@ class EONETData:
 
         # Create feature groups for different event types
         event_groups = {}
-        
+
         for event in events.get('events', []):
             if event.get('geometry') and event['geometry'][0].get('coordinates'):
                 coords = event['geometry'][0]['coordinates']
                 category = event['categories'][0]['title']
                 magnitude = event.get('magnitudeValue', 0)
-                
+
                 if magnitude:
                     magnitude = float(magnitude)
-                
+
                 # Determine icon and color based on category and magnitude
                 icon_color = self.get_magnitude_color(magnitude)
                 icon = self.get_category_icon(category)
-                
+
                 # Create feature group for category if not exists
                 if category not in event_groups:
                     event_groups[category] = folium.FeatureGroup(name=category)
-                
+
                 # Create popup content
                 popup_content = f"""
                     <div style="width: 300px">
@@ -195,7 +195,7 @@ class EONETData:
 
         # Add layer control
         folium.LayerControl().add_to(m)
-        
+
         # Add fullscreen option
         plugins.Fullscreen().add_to(m)
 
@@ -232,9 +232,9 @@ class EONETData:
             'event_count': 0,
             'categories': {},
             'magnitudes': {
-                'low': 0,    # 0-1.5
-                'medium': 0, # 1.5-5
-                'high': 0    # 5+
+                'low': 0,  # 0-1.5
+                'medium': 0,  # 1.5-5
+                'high': 0  # 5+
             },
             'daily_counts': {}
         }
@@ -255,16 +255,12 @@ class EONETData:
                 stats['daily_counts'][date] = stats['daily_counts'].get(date, 0) + 1
 
                 # Magnitude statistics
-                # Check for magnitude in both possible locations
                 magnitude = None
                 mag_id = None
 
-                # Check in event root
                 if 'magnitudeValue' in event and 'magnitudeUnit' in event:
                     magnitude = float(event['magnitudeValue'])
                     mag_id = event.get('magnitudeUnit')
-
-                # Check in geometry
                 elif event.get('geometry', []):
                     for geo in event['geometry']:
                         if 'magnitudeValue' in geo and 'magnitudeUnit' in geo:
@@ -272,9 +268,7 @@ class EONETData:
                             mag_id = geo.get('magnitudeUnit')
                             break
 
-                # Categorize magnitude if found
                 if magnitude is not None:
-                    print(f"Processing magnitude: {magnitude}, Unit: {mag_id}")  # Debug print
                     if magnitude < 1.5:
                         stats['magnitudes']['low'] += 1
                     elif magnitude < 5.0:
@@ -282,23 +276,18 @@ class EONETData:
                     else:
                         stats['magnitudes']['high'] += 1
                 else:
-                    # If no magnitude found, count as low
                     stats['magnitudes']['low'] += 1
 
             except Exception as e:
                 print(f"Error processing event: {e}")
                 continue
 
-        # Debug print
-        print("Magnitude statistics:", stats['magnitudes'])
-
         return stats
 
     def get_trend_analysis(self, category=None, period='monthly'):
         """Analyze trends in event frequency"""
         events = self.get_filtered_events(event_type=category)
-        
-        # Group events by period
+
         periods = {}
         for event in events['events']:
             date = datetime.strptime(event['geometry'][0]['date'][:10], '%Y-%m-%d')
@@ -308,15 +297,11 @@ class EONETData:
                 key = date.strftime('%Y-W%W')
             else:
                 key = date.strftime('%Y-%m-%d')
-            
+
             periods[key] = periods.get(key, 0) + 1
 
-        # Calculate trends
         counts = list(periods.values())
-        if len(counts) > 1:
-            trend = (counts[-1] - counts[0]) / len(counts)
-        else:
-            trend = 0
+        trend = (counts[-1] - counts[0]) / len(counts) if len(counts) > 1 else 0
 
         return {
             'periods': list(periods.keys()),
@@ -327,8 +312,10 @@ class EONETData:
             'min': min(counts) if counts else 0
         }
 
+
 # Initialize EONET data handler
 eonet_data = EONETData()
+
 
 @app.route('/')
 def index():
@@ -337,10 +324,18 @@ def index():
     map_html = eonet_data.create_map(events)
     return render_template('index.html', map_html=map_html)
 
+
 @app.route('/trends')
 def trends():
     """Trends analysis route"""
     return render_template('trends.html')
+
+
+@app.route('/analysis')
+def analysis():
+    """New analysis dashboard route"""
+    return render_template('analysis.html')
+
 
 @app.route('/api/events')
 def get_events():
@@ -353,6 +348,7 @@ def get_events():
         'max_magnitude': request.args.get('max_magnitude')
     }
     return jsonify(eonet_data.get_filtered_events(**params))
+
 
 @app.route('/api/map')
 def get_map():
@@ -367,15 +363,18 @@ def get_map():
     events = eonet_data.get_filtered_events(**params)
     return eonet_data.create_map(events)
 
+
 @app.route('/api/summary')
 def get_summary():
     """API endpoint for summary statistics"""
     return jsonify(eonet_data.get_summary_statistics())
 
+
 @app.route('/api/categories')
 def get_categories():
     """API endpoint for categories"""
     return jsonify(eonet_data.categories_cache or {'categories': []})
+
 
 @app.route('/api/trends')
 def get_trends():
@@ -384,78 +383,199 @@ def get_trends():
     period = request.args.get('period', 'monthly')
     return jsonify(eonet_data.get_trend_analysis(category, period))
 
-#ANALYSIS
-def get_analysis_data(self, period=30):
-    """Get analysis data from cached events"""
-    events = self.get_filtered_events()
-    
-    # Initialize analysis containers
-    timeline_data = {}
-    category_data = {}
-    geographic_data = {}
-    severity_data = []
+
+@app.route('/api/analysis/geographic')
+def get_geographic_data():
+    """Get geographic distribution data from EONET"""
+    events = eonet_data.get_filtered_events()
+    geographic_data = []
+
+    regions = {
+        'Antarctic': 0,
+        'Arctic': 0,
+        'Northern Hemisphere': 0,
+        'Southern Hemisphere': 0,
+        'Tropics (North)': 0,
+        'Tropics (South)': 0
+    }
 
     for event in events.get('events', []):
-        # Get event date
+        if event.get('geometry') and event['geometry'][0].get('coordinates'):
+            lat = event['geometry'][0]['coordinates'][1]
+            region = get_region_name(lat)
+            regions[region] += 1
+
+    for region, count in regions.items():
+        geographic_data.append({
+            'region': region,
+            'events': count
+        })
+
+    return jsonify(geographic_data)
+
+
+@app.route('/api/analysis/daily')
+def get_daily_events():
+    """Get daily events data for the last week"""
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=7)
+
+    events = eonet_data.get_filtered_events(
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d')
+    )
+
+    daily_data = []
+    current = start_date
+    date_counts = {}
+
+    while current <= end_date:
+        date_str = current.strftime('%Y-%m-%d')
+        date_counts[date_str] = 0
+        current += timedelta(days=1)
+
+    for event in events.get('events', []):
         date = event['geometry'][0]['date'][:10]
-        timeline_data[date] = timeline_data.get(date, 0) + 1
-        
-        # Get category
+        if date in date_counts:
+            date_counts[date] += 1
+
+    for date, count in sorted(date_counts.items()):
+        daily_data.append({
+            'date': date,
+            'events': count
+        })
+
+    return jsonify(daily_data)
+
+
+def get_region_name(lat):
+    """Helper function to determine region based on latitude"""
+    if lat > 66.5:
+        return 'Arctic'
+    elif lat > 23.5:
+        return 'Northern Hemisphere'
+    elif lat > 0:
+        return 'Tropics (North)'
+    elif lat > -23.5:
+        return 'Tropics (South)'
+    elif lat > -66.5:
+        return 'Southern Hemisphere'
+    else:
+        return 'Antarctic'
+
+
+@app.route('/api/analysis/data')
+def get_analysis_data():
+    """Get all analysis data"""
+    period = request.args.get('period', '30')
+
+    # Get events for the specified period
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=int(period))
+
+    events = eonet_data.get_filtered_events(
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d')
+    )
+
+    # Process data for timeline
+    timeline_data = {}
+    current = start_date
+    while current <= end_date:
+        timeline_data[current.strftime('%Y-%m-%d')] = 0
+        current += timedelta(days=1)
+
+    # Initialize data containers
+    category_data = {}
+    geographic_data = {}
+    severity_data = {
+        'labels': [],
+        'values': [],
+        'categories': []
+    }
+
+    # Process each event
+    for event in events.get('events', []):
+        # Timeline data
+        date = event['geometry'][0]['date'][:10]
+        if date in timeline_data:
+            timeline_data[date] += 1
+
+        # Category data
         category = event['categories'][0]['title']
         category_data[category] = category_data.get(category, 0) + 1
-        
-        # Get geographic region
-        if event['geometry']:
-            coords = event['geometry'][0]['coordinates']
-            lat = coords[1]
-            region = self.get_region_name(lat)
-            geographic_data[region] = geographic_data.get(region, 0) + 1
-        
-        # Get severity if available
-        if 'magnitudeValue' in event:
-            severity_data.append({
-                'date': date,
-                'value': float(event['magnitudeValue']),
-                'category': category
-            })
 
-    return {
+        # Geographic data
+        if event.get('geometry') and event['geometry'][0].get('coordinates'):
+            lat = event['geometry'][0]['coordinates'][1]
+            region = get_region_name(lat)
+            geographic_data[region] = geographic_data.get(region, 0) + 1
+
+        # Severity data
+        if 'magnitudeValue' in event:
+            severity_data['labels'].append(date)
+            severity_data['values'].append(float(event['magnitudeValue']))
+            severity_data['categories'].append(category)
+
+    return jsonify({
         'trends': {
-            'labels': sorted(timeline_data.keys()),
-            'values': [timeline_data[k] for k in sorted(timeline_data.keys())]
+            'labels': list(timeline_data.keys()),
+            'values': list(timeline_data.values())
         },
         'categories': {
             'labels': list(category_data.keys()),
             'values': list(category_data.values())
         },
         'geographic': geographic_data,
-        'severity': {
-            'labels': [d['date'] for d in severity_data],
-            'values': [d['value'] for d in severity_data],
-            'categories': [d['category'] for d in severity_data]
-        }
+        'severity': severity_data
+    })
+
+
+@app.route('/api/analysis/correlation')
+def get_correlation_data():
+    """Get correlation data for numeric features"""
+    events = eonet_data.get_filtered_events()
+
+    # Create a list to store the processed data
+    data_list = []
+
+    # Create a category to numeric mapping
+    category_mapping = {}
+    category_counter = 0
+
+    for event in events.get('events', []):
+        date = datetime.strptime(event['geometry'][0]['date'][:10], '%Y-%m-%d')
+        coordinates = event['geometry'][0]['coordinates']
+        category = event['categories'][0]['id']
+
+        # Map category to numeric value if not already mapped
+        if category not in category_mapping:
+            category_mapping[category] = category_counter
+            category_counter += 1
+
+        data_list.append({
+            'latitude': coordinates[1],
+            'longitude': coordinates[0],
+            'month': date.month,
+            'day': date.day,
+            'day_of_week': date.weekday(),
+            'is_weekend': 1 if date.weekday() >= 5 else 0,
+            'category_code': category_mapping[category]
+        })
+
+    # Convert to DataFrame
+    df = pd.DataFrame(data_list)
+
+    # Calculate correlations only for numeric columns
+    correlations = df.select_dtypes(include=[np.number]).corr(method='pearson')
+
+    # Convert to the format needed for the heatmap
+    correlation_data = {
+        'labels': correlations.columns.tolist(),
+        'values': correlations.values.tolist()
     }
 
-def get_region_name(self, lat):
-    """Get region name based on latitude"""
-    if lat > 66.5: return 'Arctic'
-    elif lat > 23.5: return 'Northern Hemisphere'
-    elif lat > 0: return 'Tropics (North)'
-    elif lat > -23.5: return 'Tropics (South)'
-    elif lat > -66.5: return 'Southern Hemisphere'
-    else: return 'Antarctic'
+    return jsonify(correlation_data)
 
-# Add these new routes to your existing Flask app
-@app.route('/analysis')
-def analysis():
-    """Analysis dashboard route"""
-    return render_template('analysis.html')
-
-@app.route('/api/analysis/data')
-def get_analysis_data():
-    """Get all analysis data"""
-    period = request.args.get('period', '30')
-    data = eonet_data.get_analysis_data(period=int(period))
-    return jsonify(data)
 if __name__ == '__main__':
     app.run(debug=True)
