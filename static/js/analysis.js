@@ -1,9 +1,8 @@
-
 class EONETAnalysis {
     constructor() {
         this.charts = {};
         this.filters = {
-            timePeriod: '30',
+            timePeriod: '7',  // Set the default time period to 7 days
             categories: [],
             region: 'all'
         };
@@ -23,30 +22,50 @@ class EONETAnalysis {
 
     // Initialize Charts
     initializeCharts() {
-        // Environmental Trends Chart
-        this.charts.trends = new Chart(
-            document.getElementById('environmentalTrendsChart').getContext('2d'), {
-            type: 'line',
+        // Daily Events Chart
+        this.charts.daily = new Chart(
+            document.getElementById('dailyEventsChart').getContext('2d'), {
+            type: 'bar',
             data: {
                 labels: [],
                 datasets: [{
-                    label: 'Event Frequency',
-                    borderColor: '#007bff',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    fill: true,
+                    label: 'Number of Events',
+                    backgroundColor: '#FF6384',
+                    borderColor: '#FF6384',
+                    borderWidth: 1,
                     data: []
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Environmental Events Over Time'
+                        text: 'Number of Events per Day (Last Week)',
+                        font: { size: 16 }
+                    },
+                    legend: {
+                        display: false
                     }
                 },
                 scales: {
-                    y: { beginAtZero: true }
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Events'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 0,
+                            minRotation: 0
+                        }
+                    }
                 }
             }
         });
@@ -149,22 +168,22 @@ class EONETAnalysis {
         this.showLoading();
         try {
             // Fetch updated data
-            const [trendsData, geoData, categoryData, severityData] = await Promise.all([
-                this.fetchTrendsData(),
+            const [dailyData, geoData, categoryData, severityData] = await Promise.all([
+                this.fetchDailyData(),
                 this.fetchGeographicData(),
                 this.fetchCategoryData(),
                 this.fetchSeverityData()
             ]);
 
             // Update charts
-            this.updateTrendsChart(trendsData);
+            this.updateDailyChart(dailyData);
             this.updateGeographicChart(geoData);
             this.updateCategoryChart(categoryData);
             this.updateSeverityChart(severityData);
 
             // Update insights
             this.updateInsights({
-                trends: trendsData,
+                daily: dailyData,
                 geographic: geoData,
                 categories: categoryData,
                 severity: severityData
@@ -177,10 +196,10 @@ class EONETAnalysis {
     }
 
     // Chart Update Functions
-    updateTrendsChart(data) {
-        this.charts.trends.data.labels = data.labels;
-        this.charts.trends.data.datasets[0].data = data.values;
-        this.charts.trends.update();
+    updateDailyChart(data) {
+        this.charts.daily.data.labels = data.map(d => d.date);
+        this.charts.daily.data.datasets[0].data = data.map(d => d.events);
+        this.charts.daily.update();
     }
 
     updateGeographicChart(data) {
@@ -201,9 +220,9 @@ class EONETAnalysis {
     }
 
     // Data Fetching Functions
-    async fetchTrendsData() {
-        const response = await fetch(`/api/analysis/trends?period=${this.filters.timePeriod}`);
-        if (!response.ok) throw new Error('Failed to fetch trends data');
+    async fetchDailyData() {
+        const response = await fetch(`/api/analysis/daily?period=${this.filters.timePeriod}`);
+        if (!response.ok) throw new Error('Failed to fetch daily data');
         return await response.json();
     }
 
