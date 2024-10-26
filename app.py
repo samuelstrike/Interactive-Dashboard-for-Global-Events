@@ -11,7 +11,9 @@ import branca.colormap as cm
 from threading import Lock
 import time
 
+# enable logging
 app = Flask(__name__)
+app.logger.setLevel('DEBUG')
 
 class EONETData:
     def __init__(self):
@@ -330,13 +332,22 @@ class EONETData:
     #ANALYSIS
     def get_analysis_data(self, period=30):
         """Get analysis data from cached events"""
-        events = self.get_filtered_events()
+        events = self.get_filtered_events(start_date=(datetime.now() - timedelta(days=period)).strftime('%Y-%m-%d'))
 
         # Initialize analysis containers
         timeline_data = {}
         category_data = {}
         geographic_data = {}
         severity_data = []
+        weekday_trend = {
+            'Sunday': 0,
+            'Monday': 0,
+            'Tuesday': 0,
+            'Wednesday': 0,
+            'Thursday': 0,
+            'Friday': 0,
+            'Saturday': 0
+        }
 
         for event in events.get('events', []):
             # Get event date
@@ -355,12 +366,18 @@ class EONETData:
                 geographic_data[region] = geographic_data.get(region, 0) + 1
 
             # Get severity if available
-            if 'magnitudeValue' in event:
-                severity_data.append({
-                    'date': date,
-                    'value': float(event['magnitudeValue']),
-                    'category': category
-                })
+            for geometry_item in event['geometry']:
+                if 'date' in geometry_item:
+                    date_obj = datetime.strptime(geometry_item['date'][:10], '%Y-%m-%d')
+                    weekday = date_obj.strftime('%A')
+                    weekday_trend[weekday] += 1
+                if 'magnitudeValue' in geometry_item:
+                    if geometry_item.get('magnitudeValue') is not None:
+                        severity_data.append({
+                            'date': date,
+                            'value': float(geometry_item['magnitudeValue']),
+                            'category': category
+                        })
 
         return {
             'trends': {
@@ -372,12 +389,20 @@ class EONETData:
                 'values': list(category_data.values())
             },
             'geographic': geographic_data,
+            'weekday': {
+                'labels': list(weekday_trend.keys()),
+                'values': list(weekday_trend.values())
+            },
             'severity': {
                 'labels': [d['date'] for d in severity_data],
                 'values': [d['value'] for d in severity_data],
                 'categories': [d['category'] for d in severity_data]
             }
         }
+
+    def convert_acres_to_nm2(self, acres):
+        """Convert acres to square kilometers"""
+        return acres * 0.00404686
 
     def get_region_name(self, lat):
         """Get region name based on latitude"""
@@ -455,7 +480,7 @@ def analysis():
 @app.route('/api/analysis/data')
 def get_analysis_data():
     """Get all analysis data"""
-    period = request.args.get('period', '30')
+    period = request.args.get('period',30)
     data = eonet_data.get_analysis_data(period=int(period))
     return jsonify(data)
 
