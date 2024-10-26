@@ -154,59 +154,61 @@ class EONETData:
             if event.get('geometry') and event['geometry'][0].get('coordinates'):
                 coords = event['geometry'][0]['coordinates']
                 category = event['categories'][0]['title']
-                magnitude = event.get('magnitudeValue', 0)
 
-                if magnitude:
-                    magnitude = float(magnitude)
+                # Initialize magnitude to 0
+                magnitude = 0
 
-                # Determine icon and color based on category and magnitude
-                icon_color = self.get_magnitude_color(magnitude)
-                icon = self.get_category_icon(category)
+                # Iterate over the geometry array to find the magnitudeValue
+                for geom in event['geometry']:
+                    if 'magnitudeValue' in geom:
+                        if geom.get('magnitudeValue') is not None:
+                            magnitude = float(geom['magnitudeValue'])
+                        else:
+                            magnitude = 0
+                        # Determine icon and color based on category and magnitude
+                        icon_color = self.get_magnitude_color(magnitude)
+                        icon = self.get_category_icon(category)
 
-                # Create feature group for category if not exists
-                if category not in event_groups:
-                    event_groups[category] = folium.FeatureGroup(name=category)
+                        # Create feature group for category if not exists
+                        if category not in event_groups:
+                            event_groups[category] = folium.FeatureGroup(name=category)
 
-                # Create popup content
-                popup_content = f"""
-                    <div style="width: 300px">
-                        <h4>{event['title']}</h4>
-                        <p><b>Category:</b> {category}</p>
-                        <p><b>Date:</b> {event['geometry'][0]['date'][:10]}</p>
-                        {'<p><b>Magnitude:</b> ' + str(magnitude) + '</p>' if magnitude else ''}
-                        <p><b>Description:</b> {event.get('description', 'No description available')}</p>
-                    </div>
-                """
+                        # Create popup content
+                        popup_content = f"""
+                            <div style="width: 300px">
+                                <h4>{event['title']}</h4>
+                                <p><b>Category:</b> {category}</p>
+                                <p><b>Date:</b> {event['geometry'][0]['date'][:10]}</p>
+                                {'<p><b>Magnitude:</b> ' + str(magnitude) + '</p>' if magnitude else ''}
+                                <p><b>Description:</b> {event.get('description', 'No description available')}</p>
+                            </div>
+                        """
 
-                # Add marker
-                folium.CircleMarker(
-                    location=[coords[1], coords[0]],
-                    radius=8,
-                    popup=folium.Popup(popup_content, max_width=300),
-                    color='black',
-                    weight=1,
-                    fill=True,
-                    fill_color=icon_color,
-                    fill_opacity=0.7,
-                    tooltip=f"{category}: {event['title']}"
-                ).add_to(event_groups[category])
+                        # Add marker
+                        folium.CircleMarker(
+                            location=[coords[1], coords[0]],
+                            radius=8,
+                            popup=folium.Popup(popup_content, max_width=300),
+                            color='black',
+                            weight=1,
+                            fill=True,
+                            fill_color=icon_color,
+                            fill_opacity=0.7
+                        ).add_to(event_groups[category])
 
-        # Add all feature groups to map
+        # Add feature groups to map
         for group in event_groups.values():
             group.add_to(m)
 
-        # Add layer control
+        # Add layer control to map
         folium.LayerControl().add_to(m)
-
-        # Add fullscreen option
-        plugins.Fullscreen().add_to(m)
 
         return m._repr_html_()
 
     def get_magnitude_color(self, magnitude):
         """Determine color based on magnitude"""
-        if not magnitude:
-            return '#3388ff'  # Default blue
+        if magnitude == 0 or magnitude is None:
+            return '#FFEB3B'  # Default blue
         if magnitude < 3:
             return '#FFEB3B'  # Yellow
         if magnitude < 6:
