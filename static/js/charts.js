@@ -18,6 +18,11 @@ async function initializeCharts() {
 
         console.log('Summary data:', stats); // Debug log
 
+        // Destroy existing charts if any
+        if (categoryChart) categoryChart.destroy();
+        if (magnitudeChart) magnitudeChart.destroy();
+        if (frequencyChart) frequencyChart.destroy();
+
         // Category Chart
         const catCtx = document.getElementById('categoryChart').getContext('2d');
         categoryChart = new Chart(catCtx, {
