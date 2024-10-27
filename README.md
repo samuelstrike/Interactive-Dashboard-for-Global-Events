@@ -29,7 +29,7 @@ The Earth Observatory Natural Event Tracker (EONET) Dashboard is a web applicati
 ### Setup
 1. Clone the repository
 ```bash
-git clone https://github.com/samuelstrike/Interactive-Dashboard-for-Global-Events.git
+git clone https://github.com/samuelstrike/eonet_dashboard.git
 cd eonet_dashboard
 ```
 
@@ -125,5 +125,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 - NASA for providing the EONET API
 - Contributors and maintainers of the open-source libraries used
-
-Hello
