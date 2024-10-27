@@ -18,6 +18,11 @@ async function initializeCharts() {
 
         console.log('Summary data:', stats); // Debug log
 
+        // Destroy existing charts if any
+        if (categoryChart) categoryChart.destroy();
+        if (magnitudeChart) magnitudeChart.destroy();
+        if (frequencyChart) frequencyChart.destroy();
+
         // Category Chart
         const catCtx = document.getElementById('categoryChart').getContext('2d');
         categoryChart = new Chart(catCtx, {
@@ -173,7 +178,7 @@ function initializeSlider() {
     if (slider.noUiSlider) {
         slider.noUiSlider.destroy();
     }
-    
+
     noUiSlider.create(slider, {
         start: [0, 20],
         connect: true,
@@ -186,7 +191,7 @@ function initializeSlider() {
     });
 
     slider.noUiSlider.on('update', values => {
-        document.getElementById('magnitudeValues').innerHTML = 
+        document.getElementById('magnitudeValues').innerHTML =
             `Range: ${Number(values[0]).toFixed(1)} - ${Number(values[1]).toFixed(1)}`;
     });
 
@@ -198,7 +203,7 @@ async function loadCategories() {
         const response = await fetch('/api/categories');
         if (!response.ok) throw new Error('Failed to fetch categories');
         const data = await response.json();
-        
+
         const select = document.getElementById('eventType');
         data.categories.forEach(category => {
             const option = document.createElement('option');
@@ -216,7 +221,7 @@ async function updateMap() {
     try {
         const slider = document.getElementById('magnitudeSlider');
         const [minMag, maxMag] = slider.noUiSlider.get();
-        
+
         const params = new URLSearchParams({
             start_date: document.getElementById('startDate').value,
             end_date: document.getElementById('endDate').value,
@@ -227,7 +232,7 @@ async function updateMap() {
 
         const response = await fetch(`/api/map?${params}`);
         if (!response.ok) throw new Error('Failed to update map');
-        
+
         const mapHtml = await response.text();
         document.querySelector('.map-container').innerHTML = mapHtml;
     } catch (error) {
@@ -258,12 +263,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         await initializeCharts();
         await loadCategories();
         initializeSlider();
-        
+
         // Set default date range
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - 30);  // Last 30 days
-        
+
         document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
         document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
 
@@ -279,4 +284,3 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error during initialization:', error);
     }
 });
-
