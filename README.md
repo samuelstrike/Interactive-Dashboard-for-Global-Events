@@ -19,6 +19,7 @@ The Earth Observatory Natural Event Tracker (EONET) Dashboard is a web applicati
   - Geographic distribution
   - Category-wise analysis
 - **Responsive Design**: Works on desktop and mobile devices
+- **Screenshots**
 ![Alt text](analysis.jpg) ![Alt text](trends.jpg)
 
 ## Installation
